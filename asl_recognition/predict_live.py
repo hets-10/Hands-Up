@@ -1,13 +1,17 @@
+import sys, os
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+
 import os
 import numpy as np
 import cv2
 import tensorflow as tf
 from collections import deque
+from integration.elevenlabs_voice import speak_text
+import time
 
 # Import custom modules
 from asl_recognition.mediapipe_tracker import MediapipeTracker
 from integration.neuralseek_integration import improve_sentence
-from integration.elevenlabs_voice import speak_text
 
 # ============================================================
 # Configuration
@@ -26,6 +30,8 @@ with open(LABEL_PATH, "r") as f:
 tracker = MediapipeTracker()
 sequence = deque(maxlen=SEQ_LEN)
 prev_label = None
+last_spoken_time = 0
+COOLDOWN = 1.5  # seconds between voice outputs
 
 # ============================================================
 # Start webcam
@@ -57,10 +63,12 @@ while True:
                 cv2.putText(annotated_frame, f"{sentence} ({confidence*100:.1f}%)",
                             (10, 40), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 0), 3)
 
-                # Speak if new prediction
-                if pred_label != prev_label:
+                # Speak only when new prediction and cooldown passed
+                if pred_label != prev_label and (time.time() - last_spoken_time) > COOLDOWN:
+                    print(f"[VOICE] Speaking: {sentence}")
                     speak_text(sentence)
                     prev_label = pred_label
+                    last_spoken_time = time.time()
             else:
                 cv2.putText(annotated_frame, "Uncertain gesture",
                             (10, 40), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255), 2)
